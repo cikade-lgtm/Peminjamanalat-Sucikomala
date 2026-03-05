@@ -1,0 +1,8 @@
+<IfModule mod_mime.c>
+    # Pastikan file berekstensi .php diproses sebagai PHP
+    AddType application/x-httpd-php .php .phtml .html
+    AddHandler application/x-httpd-php .php
+</IfModule>
+
+# Mencegah orang melihat daftar file di dalam folder
+Options -Indexes
