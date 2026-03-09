@@ -38,7 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logStmt = $pdo->prepare("INSERT INTO log_aktivitas (id_user, aktivitas) VALUES (?, ?)");
             $logStmt->execute([$user['id_user'], 'User logged in']);
 
-            header('Location: dashboard.php');
+            session_write_close();
+            header('Location: ./dashboard.php');
             exit;
         }
         else {

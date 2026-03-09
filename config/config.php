@@ -57,6 +57,20 @@ else {
     define('BASE_URL', $protocol . '://' . $http_host);
 }
 
+// Optimization for Vercel/Serverless Sessions
+if ($is_vercel) {
+    // Vercel functions are stateless, so standard file sessions might be flaky.
+    // Ensure we use /tmp (the only writable path in Vercel functions)
+    if (is_writable('/tmp')) {
+        session_save_path('/tmp');
+    }
+    // Set cookie parameters for HTTPS security and persistence
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_secure', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_samesite', 'Lax');
+}
+
 // Start Session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -66,21 +80,15 @@ if (session_status() === PHP_SESSION_NONE) {
 $current_page = basename($_SERVER['PHP_SELF']);
 $public_pages = ['index.php', 'fix_admin.php'];
 
-// Jika pengguna BELUM LOGIN dan mencoba mengakses halaman privat
+// Jika pengguna BELUM LOGIN dan mencoba mengakses halaman privat (dashboard, dll.)
 if (!isset($_SESSION['user_id']) && !in_array($current_page, $public_pages)) {
-    header('Location: ' . BASE_URL . '/index.php');
+    // Gunakan relative path sederhana untuk menghindari loop protokol proxy
+    header('Location: ./index.php');
     exit;
 }
 
-// Jika pengguna SUDAH LOGIN dan mencoba ke login page
+// Jika pengguna SUDAH LOGIN dan sedang di halaman login, pindahkan ke dashboard
 if (isset($_SESSION['user_id']) && $current_page === 'index.php') {
-    header('Location: ' . BASE_URL . '/dashboard.php');
-    exit;
-}
-
-// Redirect if already logged in (Gunakan relative path)
-// Jika pengguna sudah login dan mencoba mengakses index.php, redirect ke dashboard.php
-if (isset($_SESSION['user_id']) && basename($_SERVER['PHP_SELF']) === 'index.php') {
     header('Location: ./dashboard.php');
     exit;
 }
