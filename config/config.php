@@ -51,21 +51,13 @@ $http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
 if ($is_vercel) {
     define('BASE_URL', 'https://' . $http_host);
 
-    // Setting Session Wajib untuk Vercel (Cloud)
-    ini_set('session.use_trans_sid', '0');
-    ini_set('session.use_strict_mode', '1');
+    // Setting Session Wajib untuk Cloud
+    session_name('UKK_USER_SESSION');
     ini_set('session.use_cookies', '1');
     ini_set('session.use_only_cookies', '1');
-
-    // Pastikan cookie terbaca di HTTPS dan tetap aman
-    session_set_cookie_params([
-        'lifetime' => 86400,
-        'path' => '/',
-        'domain' => $http_host,
-        'secure' => true,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_secure', '1');
+    ini_set('session.cookie_samesite', 'Lax');
 
     if (is_writable('/tmp')) {
         session_save_path('/tmp');
@@ -81,25 +73,32 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Fungsi Redirect yang lebih stabil di Cloud (Header + JS Fallback)
+function safe_redirect($target)
+{
+    if (!headers_sent()) {
+        header("Location: $target");
+    }
+    echo "<script>window.location.href='$target';</script>";
+    exit;
+}
+
 // ============================================================
 // LOGIKA REDIRECT ANTI-LOOP (High Compatibility)
 // ============================================================
 $current_page = strtolower(basename($_SERVER['SCRIPT_NAME']));
 $public_pages = ['index.php', 'fix_admin.php'];
-$is_logged_in = isset($_SESSION['user_id']);
+$is_logged_in = isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
 
-// 1. Jika pengguna BELUM LOGIN dan mencoba mengakses halaman privat (dashboard, dll.)
+// 1. PROTEKSI: Jika BELUM LOGIN dan mencoba ke halaman privat
 if (!$is_logged_in && !in_array($current_page, $public_pages)) {
-    // Failsafe: pastikan tidak meredirect jika sudah di index.php
     if ($current_page !== 'index.php') {
-        header('Location: index.php');
-        exit;
+        safe_redirect('index.php');
     }
 }
 
-// 2. Jika pengguna SUDAH LOGIN dan berada di halaman login (index.php)
+// 2. AUTO-DASHBOARD: Jika SUDAH LOGIN dan berada di halaman login (index.php)
 if ($is_logged_in && $current_page === 'index.php') {
-    header('Location: dashboard.php');
-    exit;
+    safe_redirect('dashboard.php');
 }
 ?>
