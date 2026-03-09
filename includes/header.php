@@ -1,8 +1,5 @@
 <?php
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . BASE_URL . 'index.php');
-    exit;
-}
+// Session check is already handled in config/config.php
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -17,7 +14,7 @@ if (!isset($_SESSION['user_id'])) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
     <style>
         .main-content {
             padding: 30px;
@@ -65,7 +62,7 @@ if (!isset($_SESSION['user_id'])) {
                                 <span class="badge bg-primary"><?php echo $_SESSION['role_name']; ?></span>
                             </li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="<?php echo BASE_URL; ?>logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                            <li><a class="dropdown-item text-danger" href="<?php echo BASE_URL; ?>/logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
                         </ul>
                     </div>
                 </div>

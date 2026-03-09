@@ -48,16 +48,40 @@ define('SITE_NAME', 'Sistem Peminjaman Alat');
 // BASE_URL Dinamis untuk Localhost & Vercel
 $http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
 if ($http_host === 'localhost' || $http_host === '127.0.0.1') {
-    define('BASE_URL', 'http://localhost/sucikomalaukk2/');
+    // Lokal XAMPP
+    define('BASE_URL', 'http://localhost/sucikomalaukk2');
 }
 else {
-    // Vercel selalu menggunakan HTTPS
-    $protocol = isset($_SERVER['HTTP_X_FORWARDED_PROTO']) ? $_SERVER['HTTP_X_FORWARDED_PROTO'] : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
-    define('BASE_URL', $protocol . '://' . $http_host . '/');
+    // Vercel
+    $protocol = (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? "https" : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+    define('BASE_URL', $protocol . '://' . $http_host);
 }
 
 // Start Session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
+}
+
+// Redirection logic for login/dashboard (Centralized)
+$current_page = basename($_SERVER['PHP_SELF']);
+$public_pages = ['index.php', 'fix_admin.php'];
+
+// Jika pengguna BELUM LOGIN dan mencoba mengakses halaman privat
+if (!isset($_SESSION['user_id']) && !in_array($current_page, $public_pages)) {
+    header('Location: ' . BASE_URL . '/index.php');
+    exit;
+}
+
+// Jika pengguna SUDAH LOGIN dan mencoba ke login page
+if (isset($_SESSION['user_id']) && $current_page === 'index.php') {
+    header('Location: ' . BASE_URL . '/dashboard.php');
+    exit;
+}
+
+// Redirect if already logged in (Gunakan relative path)
+// Jika pengguna sudah login dan mencoba mengakses index.php, redirect ke dashboard.php
+if (isset($_SESSION['user_id']) && basename($_SERVER['PHP_SELF']) === 'index.php') {
+    header('Location: ./dashboard.php');
+    exit;
 }
 ?>
