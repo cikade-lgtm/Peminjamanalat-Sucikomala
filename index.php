@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logStmt->execute([$user['id_user'], 'User logged in']);
 
             session_write_close();
-            header('Location: ./dashboard.php');
+            safe_redirect('dashboard.php');
             exit;
         }
         else {
