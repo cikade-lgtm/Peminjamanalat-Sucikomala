@@ -1,14 +1,20 @@
 <?php
 // Configuration for Database
 // Menggunakan Environment Variables untuk Vercel (Aiven), fallback ke localhost
-$host = getenv('DB_HOST') ?: 'localhost';
-$db = getenv('DB_NAME') ?: 'inventory_ukk';
+
+// Deteksi apakah berjalan di Vercel (produksi) atau lokal
+$is_vercel = getenv('VERCEL') || getenv('VERCEL_ENV');
+
+// Gunakan 127.0.0.1 untuk lokal (menghindari socket Unix yang menyebabkan error "No such file or directory")
+$host = getenv('DB_HOST') ?: ($is_vercel ? 'localhost' : '127.0.0.1');
+// Aiven menggunakan 'defaultdb' sebagai nama database default
+// Lokal XAMPP menggunakan 'inventory_ukk'
+$db = getenv('DB_NAME') ?: ($is_vercel ? 'defaultdb' : 'inventory_ukk');
 $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') ?: '';
 $port = getenv('DB_PORT') ?: '3306';
 $charset = 'utf8mb4';
 
-// Aiven mewajibkan koneksi SSL, kita tambahkan dsn parameter jika menggunakan port selain 3306 (opsional)
 $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=$charset";
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -16,10 +22,23 @@ $options = [
     PDO::ATTR_EMULATE_PREPARES => false,
 ];
 
+// SSL options untuk Aiven (hanya aktif jika di Vercel/produksi)
+if ($is_vercel && getenv('DB_HOST')) {
+    $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+}
+
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 }
 catch (\PDOException $e) {
+    // Berikan pesan error yang lebih informatif
+    if ($is_vercel && !getenv('DB_HOST')) {
+        throw new \PDOException(
+            'Database environment variables (DB_HOST, DB_NAME, DB_USER, DB_PASS) belum dikonfigurasi di Vercel. ' .
+            'Silakan tambahkan di Settings > Environment Variables pada dashboard Vercel Anda.',
+            (int)$e->getCode()
+            );
+    }
     throw new \PDOException($e->getMessage(), (int)$e->getCode());
 }
 

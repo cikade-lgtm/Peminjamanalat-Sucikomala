@@ -1,15 +1,40 @@
--- Create Database
-CREATE DATABASE IF NOT EXISTS inventory_ukk;
-USE inventory_ukk;
+-- ============================================================
+-- DATABASE SETUP
+-- ============================================================
+-- LOKAL (XAMPP): Buat database 'inventory_ukk' lalu jalankan script ini.
+-- AIVEN (CLOUD): Langsung jalankan script ini di dalam database 'defaultdb'.
+-- ============================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS log_aktivitas;
+DROP TABLE IF EXISTS pengembalian;
+DROP TABLE IF EXISTS detail_peminjaman;
+DROP TABLE IF EXISTS peminjaman;
+DROP TABLE IF EXISTS alat;
+DROP TABLE IF EXISTS kategori;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS roles;
+
+DROP TRIGGER IF EXISTS after_approve_borrowing;
+DROP TRIGGER IF EXISTS after_return_tool;
+DROP FUNCTION IF EXISTS hitung_denda;
+DROP PROCEDURE IF EXISTS sp_peminjaman;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================
+-- TABLES
+-- ============================================================
 
 -- Roles Table
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS roles (
     id_role INT PRIMARY KEY AUTO_INCREMENT,
     nama_role VARCHAR(50) NOT NULL
 );
 
 -- Users Table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id_user INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -19,13 +44,13 @@ CREATE TABLE users (
 );
 
 -- Categories Table
-CREATE TABLE kategori (
+CREATE TABLE IF NOT EXISTS kategori (
     id_kategori INT PRIMARY KEY AUTO_INCREMENT,
     nama_kategori VARCHAR(50) NOT NULL
 );
 
 -- Tools Table
-CREATE TABLE alat (
+CREATE TABLE IF NOT EXISTS alat (
     id_alat INT PRIMARY KEY AUTO_INCREMENT,
     nama_alat VARCHAR(100) NOT NULL,
     id_kategori INT,
@@ -35,7 +60,7 @@ CREATE TABLE alat (
 );
 
 -- Borrowing Table
-CREATE TABLE peminjaman (
+CREATE TABLE IF NOT EXISTS peminjaman (
     id_peminjaman INT PRIMARY KEY AUTO_INCREMENT,
     id_user INT,
     tgl_pinjam DATE NOT NULL,
@@ -47,7 +72,7 @@ CREATE TABLE peminjaman (
 );
 
 -- Borrowing Detail Table
-CREATE TABLE detail_peminjaman (
+CREATE TABLE IF NOT EXISTS detail_peminjaman (
     id_detail INT PRIMARY KEY AUTO_INCREMENT,
     id_peminjaman INT,
     id_alat INT,
@@ -57,7 +82,7 @@ CREATE TABLE detail_peminjaman (
 );
 
 -- Return Table
-CREATE TABLE pengembalian (
+CREATE TABLE IF NOT EXISTS pengembalian (
     id_pengembalian INT PRIMARY KEY AUTO_INCREMENT,
     id_peminjaman INT UNIQUE,
     tgl_kembali DATE NOT NULL,
@@ -66,7 +91,7 @@ CREATE TABLE pengembalian (
 );
 
 -- Activity Log Table
-CREATE TABLE log_aktivitas (
+CREATE TABLE IF NOT EXISTS log_aktivitas (
     id_log INT PRIMARY KEY AUTO_INCREMENT,
     id_user INT,
     aktivitas TEXT,
@@ -74,9 +99,11 @@ CREATE TABLE log_aktivitas (
     FOREIGN KEY (id_user) REFERENCES users(id_user)
 );
 
--- TRIGGERS --
+-- ============================================================
+-- TRIGGERS
+-- ============================================================
 
--- Trigger to decrease stock when a tool is borrowed (status changes to 'approved')
+-- Trigger to decrease stock when a tool is borrowed (status 'approved')
 DELIMITER //
 CREATE TRIGGER after_approve_borrowing
 AFTER UPDATE ON peminjaman
@@ -101,16 +128,18 @@ BEGIN
     JOIN detail_peminjaman dp ON a.id_alat = dp.id_alat
     SET a.stok = a.stok + dp.jumlah
     WHERE dp.id_peminjaman = NEW.id_peminjaman;
-    
+
     UPDATE peminjaman SET status = 'returned' WHERE id_peminjaman = NEW.id_peminjaman;
 END //
 DELIMITER ;
 
--- FUNCTIONS --
+-- ============================================================
+-- FUNCTIONS
+-- ============================================================
 
 -- Function to calculate late fee
 DELIMITER //
-CREATE FUNCTION hitung_denda(tgl_kembali_seharusnya DATE, tgl_aktual DATE) 
+CREATE FUNCTION hitung_denda(tgl_kembali_seharusnya DATE, tgl_aktual DATE)
 RETURNS DECIMAL(10,2)
 DETERMINISTIC
 BEGIN
@@ -118,7 +147,7 @@ BEGIN
     DECLARE total_denda DECIMAL(10,2);
     SET selisih = DATEDIFF(tgl_aktual, tgl_kembali_seharusnya);
     IF selisih > 0 THEN
-        SET total_denda = selisih * 5000; -- Change 5000 to the desired per-day fine
+        SET total_denda = selisih * 5000; -- Rp5.000 per hari keterlambatan
     ELSE
         SET total_denda = 0;
     END IF;
@@ -126,7 +155,9 @@ BEGIN
 END //
 DELIMITER ;
 
--- STORED PROCEDURES --
+-- ============================================================
+-- STORED PROCEDURES
+-- ============================================================
 
 -- Procedure for a complete borrowing transaction
 DELIMITER //
@@ -139,24 +170,26 @@ CREATE PROCEDURE sp_peminjaman(
 )
 BEGIN
     DECLARE v_id_peminjaman INT;
-    
+
     START TRANSACTION;
-    
-    INSERT INTO peminjaman (id_user, tgl_pinjam, tgl_kembali_seharusnya, status) 
+
+    INSERT INTO peminjaman (id_user, tgl_pinjam, tgl_kembali_seharusnya, status)
     VALUES (p_id_user, p_tgl_pinjam, p_tgl_kembali_seharusnya, 'pending');
-    
+
     SET v_id_peminjaman = LAST_INSERT_ID();
-    
-    INSERT INTO detail_peminjaman (id_peminjaman, id_alat, jumlah) 
+
+    INSERT INTO detail_peminjaman (id_peminjaman, id_alat, jumlah)
     VALUES (v_id_peminjaman, p_id_alat, p_jumlah);
-    
+
     COMMIT;
 END //
 DELIMITER ;
 
--- SEED DATA --
+-- ============================================================
+-- SEED DATA
+-- ============================================================
 INSERT INTO roles (nama_role) VALUES ('Admin'), ('Petugas'), ('Peminjam');
 
 -- Default Admin (password: admin123)
-INSERT INTO users (username, password, nama_lengkap, id_role) VALUES 
+INSERT INTO users (username, password, nama_lengkap, id_role) VALUES
 ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Super Admin', 1);
