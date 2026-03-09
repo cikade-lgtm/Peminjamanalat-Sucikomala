@@ -47,28 +47,28 @@ define('SITE_NAME', 'Sistem Peminjaman Alat');
 
 // BASE_URL Dinamis untuk Localhost & Vercel
 $http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
-if ($http_host === 'localhost' || $http_host === '127.0.0.1') {
-    // Lokal XAMPP
-    define('BASE_URL', 'http://localhost/sucikomalaukk2');
-}
-else {
-    // Vercel
-    $protocol = (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? "https" : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
-    define('BASE_URL', $protocol . '://' . $http_host);
-}
 
-// Optimization for Vercel/Serverless Sessions
 if ($is_vercel) {
-    // Vercel functions are stateless, so standard file sessions might be flaky.
-    // Ensure we use /tmp (the only writable path in Vercel functions)
+    // Vercel selalu HTTPS, paksa agar tidak terjadi loop protocol
+    define('BASE_URL', 'https://' . $http_host);
+
+    // Optimasi Session untuk Vercel (Serverless)
     if (is_writable('/tmp')) {
         session_save_path('/tmp');
     }
-    // Set cookie parameters for HTTPS security and persistence
-    ini_set('session.cookie_httponly', '1');
-    ini_set('session.cookie_secure', '1');
-    ini_set('session.use_only_cookies', '1');
-    ini_set('session.cookie_samesite', 'Lax');
+    // Pastikan cookie terbaca di HTTPS dan tetap aman
+    session_set_cookie_params([
+        'lifetime' => 86400,
+        'path' => '/',
+        'domain' => $http_host,
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+}
+else {
+    // Lokal XAMPP
+    define('BASE_URL', 'http://' . $http_host . '/sucikomalaukk2');
 }
 
 // Start Session
@@ -76,20 +76,21 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Redirection logic for login/dashboard (Centralized)
-$current_page = basename($_SERVER['PHP_SELF']);
+// ============================================================
+// LOGIKA REDIRECT TERPUSAT (Anti-Loop)
+// ============================================================
+$current_script = strtolower(basename($_SERVER['SCRIPT_NAME']));
 $public_pages = ['index.php', 'fix_admin.php'];
 
-// Jika pengguna BELUM LOGIN dan mencoba mengakses halaman privat (dashboard, dll.)
-if (!isset($_SESSION['user_id']) && !in_array($current_page, $public_pages)) {
-    // Gunakan relative path sederhana untuk menghindari loop protokol proxy
-    header('Location: ./index.php');
+// 1. Jika pengguna BELUM LOGIN dan mencoba mengakses halaman privat (dashboard, dll.)
+if (!isset($_SESSION['user_id']) && !in_array($current_script, $public_pages)) {
+    header('Location: ' . BASE_URL . '/index.php');
     exit;
 }
 
-// Jika pengguna SUDAH LOGIN dan sedang di halaman login, pindahkan ke dashboard
-if (isset($_SESSION['user_id']) && $current_page === 'index.php') {
-    header('Location: ./dashboard.php');
+// 2. Jika pengguna SUDAH LOGIN dan berada di halaman login (index.php)
+if (isset($_SESSION['user_id']) && $current_script === 'index.php') {
+    header('Location: ' . BASE_URL . '/dashboard.php');
     exit;
 }
 ?>
